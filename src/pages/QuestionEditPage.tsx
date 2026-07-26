@@ -2,6 +2,7 @@ import { useEffect, useState, type SubmitEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { createQuestion, getQuestion, updateQuestion } from "@/api/question";
 import { QUESTION_TYPE_LABEL } from "@/constants/questionType";
+import ImageCaptureInput from "@/components/ImageCaptureInput";
 import type { Question, QuestionType } from "@/types/domain";
 
 export default function QuestionEditPage() {
@@ -13,9 +14,11 @@ export default function QuestionEditPage() {
   );
   const [type, setType] = useState<QuestionType | null>(null);
   const [promptText, setPromptText] = useState("");
+  const [promptImage, setPromptImage] = useState<Blob | undefined>(undefined);
   const [choices, setChoices] = useState<string[]>(["", ""]);
   const [correctChoice, setCorrectChoice] = useState<number | null>(null);
   const [answerText, setAnswerText] = useState("");
+  const [answerImage, setAnswerImage] = useState<Blob | undefined>(undefined);
   const [oxAnswer, setOxAnswer] = useState<boolean | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -29,11 +32,13 @@ export default function QuestionEditPage() {
       if (!q) return;
       setType(q.type);
       setPromptText(q.promptText ?? "");
+      setPromptImage(q.promptImage);
       if (q.type === "mcq") {
         setChoices(q.choices && q.choices.length >= 2 ? q.choices : ["", ""]);
         setCorrectChoice(q.correctChoice ?? null);
       } else if (q.type === "essay") {
         setAnswerText(q.answerText ?? "");
+        setAnswerImage(q.answerImage);
       } else if (q.type === "ox") {
         setOxAnswer(q.oxAnswer ?? null);
       }
@@ -54,6 +59,20 @@ export default function QuestionEditPage() {
       if (prev === null || prev === index) return null;
       return prev > index ? prev - 1 : prev;
     });
+  }
+
+  function applyRecognizedText(
+    recognized: string,
+    current: string,
+    setter: (value: string) => void,
+  ) {
+    if (!current.trim()) {
+      setter(recognized);
+      return;
+    }
+    if (window.confirm("인식된 텍스트로 기존 입력을 덮어쓸까요?")) {
+      setter(recognized);
+    }
   }
 
   async function handleSubmit(e: SubmitEvent) {
@@ -105,6 +124,7 @@ export default function QuestionEditPage() {
           case "mcq":
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
+              promptImage,
               choices: choices.map((c) => c.trim()),
               correctChoice: correctChoice as number,
             });
@@ -112,12 +132,15 @@ export default function QuestionEditPage() {
           case "essay":
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
+              promptImage,
               answerText: answerText.trim(),
+              answerImage,
             });
             break;
           case "ox":
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
+              promptImage,
               oxAnswer: oxAnswer as boolean,
             });
             break;
@@ -129,6 +152,7 @@ export default function QuestionEditPage() {
               archiveId,
               type: "mcq",
               promptText: promptText.trim(),
+              promptImage,
               choices: choices.map((c) => c.trim()),
               correctChoice: correctChoice as number,
             });
@@ -138,7 +162,9 @@ export default function QuestionEditPage() {
               archiveId,
               type: "essay",
               promptText: promptText.trim(),
+              promptImage,
               answerText: answerText.trim(),
+              answerImage,
             });
             break;
           case "ox":
@@ -146,6 +172,7 @@ export default function QuestionEditPage() {
               archiveId,
               type: "ox",
               promptText: promptText.trim(),
+              promptImage,
               oxAnswer: oxAnswer as boolean,
             });
             break;
@@ -237,6 +264,12 @@ export default function QuestionEditPage() {
             rows={4}
             className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
           />
+          <ImageCaptureInput
+            image={promptImage}
+            onImageChange={setPromptImage}
+            onTextRecognized={(text) => applyRecognizedText(text, promptText, setPromptText)}
+            label="문제 사진"
+          />
         </section>
 
         <section className="mt-6">
@@ -261,13 +294,13 @@ export default function QuestionEditPage() {
                     value={choice}
                     onChange={(e) => handleChoiceChange(index, e.target.value)}
                     placeholder={`보기 ${index + 1}`}
-                    className="flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+                    className="min-w-0 flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
                   />
                   {choices.length > 2 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveChoice(index)}
-                      className="rounded-control px-2 py-1 text-xs text-wrong hover:underline"
+                      className="shrink-0 whitespace-nowrap rounded-control px-2 py-1 text-xs text-wrong hover:underline"
                     >
                       삭제
                     </button>
@@ -285,13 +318,21 @@ export default function QuestionEditPage() {
           )}
 
           {type === "essay" && (
-            <textarea
-              value={answerText}
-              onChange={(e) => setAnswerText(e.target.value)}
-              placeholder="모범답안을 입력하세요"
-              rows={4}
-              className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
-            />
+            <>
+              <textarea
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+                placeholder="모범답안을 입력하세요"
+                rows={4}
+                className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+              />
+              <ImageCaptureInput
+                image={answerImage}
+                onImageChange={setAnswerImage}
+                onTextRecognized={(text) => applyRecognizedText(text, answerText, setAnswerText)}
+                label="정답 사진"
+              />
+            </>
           )}
 
           {type === "ox" && (

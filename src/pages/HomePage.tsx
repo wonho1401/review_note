@@ -59,16 +59,16 @@ export default function HomePage() {
     <main className="p-6">
       <h1 className="text-2xl font-semibold text-ink">홈</h1>
 
-      <form onSubmit={handleCreate} className="mt-4 flex gap-2">
+      <form onSubmit={handleCreate} className="mt-4 flex flex-col gap-2 sm:flex-row">
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="아카이브 이름"
-          className="flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+          className="min-w-0 flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
         />
         <button
           type="submit"
-          className="rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+          className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
         >
           새 아카이브 만들기
         </button>
