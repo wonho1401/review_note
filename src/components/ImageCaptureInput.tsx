@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { resizeImageBlob } from "@/util/resizeImage";
 import { recognizeText } from "@/util/ocr";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -23,12 +23,21 @@ export default function ImageCaptureInput({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  const previewUrl = useMemo(() => (image ? URL.createObjectURL(image) : null), [image]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Creating the object URL here (not in useMemo) matters: React StrictMode's
+  // dev-only mount->cleanup->mount would otherwise revoke the URL with
+  // nothing left to recreate it.
   useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
+    if (!image) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(image);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [image]);
 
   async function handleFileSelected(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

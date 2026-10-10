@@ -5,9 +5,11 @@ import { listQuestionsByArchive, updateQuestion } from "@/api/question";
 import { gradeMcq, gradeOx } from "@/util/grading";
 import { selectSessionQueue, summarizeSession } from "@/util/session";
 import BlobImage from "@/components/BlobImage";
+import HighlightableText from "@/components/HighlightableText";
 import PageHeader from "@/components/PageHeader";
 import SegmentedControl from "@/components/SegmentedControl";
-import type { Archive, Question, Status } from "@/types/domain";
+import type { HighlightStyle, TextRange } from "@/util/textAnnotation";
+import type { Annotation, Archive, Question, Status } from "@/types/domain";
 import type { SessionResult } from "@/util/session";
 
 function mcqChoiceClass(
@@ -136,6 +138,32 @@ export default function SolveSessionPage() {
     }
   }
 
+  async function saveAnnotations(annotations: Annotation[]) {
+    if (!currentQuestion) return;
+    await updateQuestion(currentQuestion.id, { annotations });
+    const patch = (q: Question): Question =>
+      q.id === currentQuestion.id ? { ...q, annotations } : q;
+    setAllQuestions((prev) => (prev ? prev.map(patch) : prev));
+    setQueue((prev) => prev.map(patch));
+  }
+
+  function handleAddTextAnnotation(start: number, end: number, style: HighlightStyle) {
+    if (!currentQuestion) return;
+    saveAnnotations([
+      ...currentQuestion.annotations,
+      { target: "text", field: "answerText", start, end, style },
+    ]);
+  }
+
+  function handleClearTextAnnotations() {
+    if (!currentQuestion) return;
+    saveAnnotations(
+      currentQuestion.annotations.filter(
+        (a) => !(a.target === "text" && a.field === "answerText"),
+      ),
+    );
+  }
+
   function handleGrade() {
     if (!currentQuestion) return;
     switch (currentQuestion.type) {
@@ -221,6 +249,17 @@ export default function SolveSessionPage() {
     );
   }
 
+  const textRanges: TextRange[] = currentQuestion.annotations
+    .filter((a) => a.target === "text" && a.field === "answerText")
+    .map((a) => {
+      const textAnnotation = a as Extract<Annotation, { target: "text" }>;
+      return {
+        start: textAnnotation.start,
+        end: textAnnotation.end,
+        style: textAnnotation.style,
+      };
+    });
+
   return (
     <main>
       <PageHeader backTo={`/archives/${archiveId}`} title="풀이 세션" />
@@ -293,9 +332,17 @@ export default function SolveSessionPage() {
               <div>
                 <p className="text-sm font-medium text-ink">모범답안</p>
                 {currentQuestion.answerText && (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
-                    {currentQuestion.answerText}
-                  </p>
+                  <div className="mt-2">
+                    {/* editable as soon as the answer is revealed — no need to
+                        self-grade first just to find the highlight tools */}
+                    <HighlightableText
+                      text={currentQuestion.answerText}
+                      ranges={textRanges}
+                      editable
+                      onAddAnnotation={handleAddTextAnnotation}
+                      onClearAll={handleClearTextAnnotations}
+                    />
+                  </div>
                 )}
                 {currentQuestion.answerImage && (
                   <BlobImage
