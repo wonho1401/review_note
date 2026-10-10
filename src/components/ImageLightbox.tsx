@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface ImageLightboxProps {
   src: string;
@@ -7,9 +7,26 @@ interface ImageLightboxProps {
 }
 
 export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    closeButtonRef.current?.focus();
+    return () => {
+      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
+    };
+  }, []);
+
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "Tab") {
+        // The close button is the only focusable element in the dialog, so
+        // trapping Tab just means keeping focus pinned on it.
+        e.preventDefault();
+        closeButtonRef.current?.focus();
+      }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -23,6 +40,7 @@ export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps)
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
     >
       <button
+        ref={closeButtonRef}
         type="button"
         onClick={onClose}
         aria-label="닫기"
