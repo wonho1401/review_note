@@ -91,12 +91,20 @@ export default function ArchiveDetailPage() {
         </div>
       </div>
 
-      <Link
-        to={`/archives/${archiveId}/questions/new`}
-        className="mt-4 inline-block rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-      >
-        문제 추가
-      </Link>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Link
+          to={`/archives/${archiveId}/solve`}
+          className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
+        >
+          풀이 시작
+        </Link>
+        <Link
+          to={`/archives/${archiveId}/questions/new`}
+          className="shrink-0 whitespace-nowrap rounded-control border border-border bg-surface px-4 py-2 text-center text-sm font-medium text-ink hover:border-primary"
+        >
+          문제 추가
+        </Link>
+      </div>
 
       {questions.length === 0 ? (
         <p className="mt-6 text-sm text-muted">
