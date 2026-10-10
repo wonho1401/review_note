@@ -3,7 +3,16 @@ import { Link, useParams } from "react-router";
 import { getArchive } from "@/api/archive";
 import { listQuestionsByArchive } from "@/api/question";
 import { QUESTION_TYPE_LABEL } from "@/constants/questionType";
+import PageHeader from "@/components/PageHeader";
 import type { Archive, Question } from "@/types/domain";
+
+type StatusFilter = "all" | "remaining" | "correct";
+
+function filterQuestions(questions: Question[], filter: StatusFilter): Question[] {
+  if (filter === "remaining") return questions.filter((q) => q.status !== "correct");
+  if (filter === "correct") return questions.filter((q) => q.status === "correct");
+  return questions;
+}
 
 function previewText(question: Question): string {
   const text = question.promptText?.trim();
@@ -26,10 +35,17 @@ function statusDotClass(status: Question["status"]): string {
   return "bg-muted";
 }
 
+function statCardClass(active: boolean): string {
+  return `rounded-card border p-4 text-center transition-colors ${
+    active ? "border-primary bg-primary/5" : "border-border bg-surface hover:border-primary/40"
+  }`;
+}
+
 export default function ArchiveDetailPage() {
   const { archiveId } = useParams();
   const [archive, setArchive] = useState<Archive | null | undefined>(undefined);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [filter, setFilter] = useState<StatusFilter>("all");
 
   useEffect(() => {
     if (!archiveId) return;
@@ -56,11 +72,8 @@ export default function ArchiveDetailPage() {
 
   if (archive === null) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-semibold text-ink">아카이브를 찾을 수 없습니다</h1>
-        <Link to="/" className="mt-4 inline-block text-primary">
-          홈으로
-        </Link>
+      <main>
+        <PageHeader backTo="/" title="아카이브를 찾을 수 없습니다" />
       </main>
     );
   }
@@ -68,70 +81,83 @@ export default function ArchiveDetailPage() {
   const total = questions.length;
   const correctCount = questions.filter((q) => q.status === "correct").length;
   const remaining = total - correctCount;
+  const visibleQuestions = filterQuestions(questions, filter);
 
   return (
-    <main className="p-6">
-      <Link to="/" className="text-sm text-primary">
-        홈으로
-      </Link>
-      <h1 className="mt-2 text-2xl font-semibold text-ink">{archive.name}</h1>
+    <main>
+      <PageHeader backTo="/" title={archive.name} />
+      <div className="p-6">
+        <div className="grid grid-cols-3 gap-3">
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            className={statCardClass(filter === "all")}
+          >
+            <p className="text-2xl font-semibold text-ink">{total}</p>
+            <p className="text-xs text-muted">전체</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("remaining")}
+            className={statCardClass(filter === "remaining")}
+          >
+            <p className="text-2xl font-semibold text-ink">{remaining}</p>
+            <p className="text-xs text-muted">남은</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("correct")}
+            className={statCardClass(filter === "correct")}
+          >
+            <p className="text-2xl font-semibold text-correct">{correctCount}</p>
+            <p className="text-xs text-muted">맞힘</p>
+          </button>
+        </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <div className="rounded-card border border-border bg-surface p-4 text-center">
-          <p className="text-2xl font-semibold text-ink">{total}</p>
-          <p className="text-xs text-muted">전체</p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <Link
+            to={`/archives/${archiveId}/solve`}
+            className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
+          >
+            풀이 시작
+          </Link>
+          <Link
+            to={`/archives/${archiveId}/questions/new`}
+            className="shrink-0 whitespace-nowrap rounded-control border border-border bg-surface px-4 py-2 text-center text-sm font-medium text-ink hover:border-primary"
+          >
+            문제 추가
+          </Link>
         </div>
-        <div className="rounded-card border border-border bg-surface p-4 text-center">
-          <p className="text-2xl font-semibold text-ink">{remaining}</p>
-          <p className="text-xs text-muted">남은</p>
-        </div>
-        <div className="rounded-card border border-border bg-surface p-4 text-center">
-          <p className="text-2xl font-semibold text-correct">{correctCount}</p>
-          <p className="text-xs text-muted">맞힘</p>
-        </div>
+
+        {questions.length === 0 ? (
+          <p className="mt-6 text-sm text-muted">
+            아직 추가한 문제가 없어요. 첫 문제를 추가해 보세요.
+          </p>
+        ) : visibleQuestions.length === 0 ? (
+          <p className="mt-6 text-sm text-muted">해당하는 문제가 없어요.</p>
+        ) : (
+          <ul className="mt-6 flex flex-col gap-2">
+            {visibleQuestions.map((question) => (
+              <li key={question.id}>
+                <Link
+                  to={`/archives/${archiveId}/questions/${question.id}/edit`}
+                  className="flex items-center gap-3 rounded-card border border-border bg-surface p-4 hover:border-primary"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDotClass(question.status)}`}
+                  />
+                  <span className="sr-only">{statusLabel(question.status)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-ink">{previewText(question)}</p>
+                    <p className="text-xs text-muted">{QUESTION_TYPE_LABEL[question.type]}</p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-        <Link
-          to={`/archives/${archiveId}/solve`}
-          className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-center text-sm font-medium text-white hover:bg-primary-hover"
-        >
-          풀이 시작
-        </Link>
-        <Link
-          to={`/archives/${archiveId}/questions/new`}
-          className="shrink-0 whitespace-nowrap rounded-control border border-border bg-surface px-4 py-2 text-center text-sm font-medium text-ink hover:border-primary"
-        >
-          문제 추가
-        </Link>
-      </div>
-
-      {questions.length === 0 ? (
-        <p className="mt-6 text-sm text-muted">
-          아직 추가한 문제가 없어요. 첫 문제를 추가해 보세요.
-        </p>
-      ) : (
-        <ul className="mt-6 flex flex-col gap-2">
-          {questions.map((question) => (
-            <li key={question.id}>
-              <Link
-                to={`/archives/${archiveId}/questions/${question.id}/edit`}
-                className="flex items-center gap-3 rounded-card border border-border bg-surface p-4 hover:border-primary"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusDotClass(question.status)}`}
-                />
-                <span className="sr-only">{statusLabel(question.status)}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-ink">{previewText(question)}</p>
-                  <p className="text-xs text-muted">{QUESTION_TYPE_LABEL[question.type]}</p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
     </main>
   );
 }

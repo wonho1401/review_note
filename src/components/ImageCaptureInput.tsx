@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { resizeImageBlob } from "@/util/resizeImage";
 import { recognizeText } from "@/util/ocr";
+import ImageLightbox from "@/components/ImageLightbox";
 
 interface ImageCaptureInputProps {
   image: Blob | undefined;
@@ -18,6 +19,7 @@ export default function ImageCaptureInput({
   const [recognizing, setRecognizing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [ocrError, setOcrError] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -99,11 +101,25 @@ export default function ImageCaptureInput({
 
       {previewUrl && (
         <div className="flex items-start gap-3">
-          <img
-            src={previewUrl}
-            alt={`${label} 미리보기`}
-            className="h-28 w-28 rounded-control border border-border object-cover"
-          />
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            aria-label={`${label} 크게 보기`}
+            className="block cursor-zoom-in border-0 bg-transparent p-0"
+          >
+            <img
+              src={previewUrl}
+              alt={`${label} 미리보기`}
+              className="h-28 w-28 rounded-control border border-border object-cover"
+            />
+          </button>
+          {lightboxOpen && (
+            <ImageLightbox
+              src={previewUrl}
+              alt={`${label} 미리보기`}
+              onClose={() => setLightboxOpen(false)}
+            />
+          )}
           <div className="flex flex-col gap-2">
             <button
               type="button"

@@ -5,6 +5,8 @@ import { listQuestionsByArchive, updateQuestion } from "@/api/question";
 import { gradeMcq, gradeOx } from "@/util/grading";
 import { selectSessionQueue, summarizeSession } from "@/util/session";
 import BlobImage from "@/components/BlobImage";
+import PageHeader from "@/components/PageHeader";
+import SegmentedControl from "@/components/SegmentedControl";
 import type { Archive, Question, Status } from "@/types/domain";
 import type { SessionResult } from "@/util/session";
 
@@ -100,9 +102,8 @@ export default function SolveSessionPage() {
     setWasCorrect(null);
   }
 
-  function handleToggleShowAll() {
-    if (!allQuestions) return;
-    const next = !showAll;
+  function applyShowAll(next: boolean) {
+    if (!allQuestions || next === showAll) return;
     setShowAll(next);
     setQueue(selectSessionQueue(allQuestions, next));
     setCurrentIndex(0);
@@ -172,37 +173,33 @@ export default function SolveSessionPage() {
 
   if (archive === null) {
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-semibold text-ink">아카이브를 찾을 수 없습니다</h1>
-        <Link to="/" className="mt-4 inline-block text-primary">
-          홈으로
-        </Link>
+      <main>
+        <PageHeader backTo="/" title="아카이브를 찾을 수 없습니다" />
       </main>
     );
   }
 
   if (queue.length === 0) {
     return (
-      <main className="p-6">
-        <Link to={`/archives/${archiveId}`} className="text-sm text-primary">
-          아카이브로
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">풀이 세션</h1>
-        <p className="mt-4 text-sm text-muted">풀 문제가 없어요.</p>
-        {!showAll && (
-          <>
-            <p className="mt-1 text-sm text-muted">
-              전체 보기를 켜면 맞힌 문제도 다시 풀 수 있어요.
-            </p>
-            <button
-              type="button"
-              onClick={handleToggleShowAll}
-              className="mt-4 shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-            >
-              전체 보기 켜기
-            </button>
-          </>
-        )}
+      <main>
+        <PageHeader backTo={`/archives/${archiveId}`} title="풀이 세션" />
+        <div className="p-6">
+          <p className="text-sm text-muted">풀 문제가 없어요.</p>
+          {!showAll && (
+            <>
+              <p className="mt-1 text-sm text-muted">
+                전체 보기를 켜면 맞힌 문제도 다시 풀 수 있어요.
+              </p>
+              <button
+                type="button"
+                onClick={() => applyShowAll(true)}
+                className="mt-4 shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+              >
+                전체 보기 켜기
+              </button>
+            </>
+          )}
+        </div>
       </main>
     );
   }
@@ -210,171 +207,189 @@ export default function SolveSessionPage() {
   if (currentIndex >= queue.length) {
     const { gradedCount, correctCount } = summarizeSession(results);
     return (
-      <main className="p-6">
-        <h1 className="text-2xl font-semibold text-ink">다 풀었어요!</h1>
-        <p className="mt-2 text-sm text-ink">
-          {gradedCount}문제 중 {correctCount}문제를 맞혔어요.
-        </p>
-        <Link to={`/archives/${archiveId}`} className="mt-4 inline-block text-primary">
-          아카이브로
-        </Link>
+      <main>
+        <PageHeader backTo={`/archives/${archiveId}`} title="다 풀었어요!" />
+        <div className="p-6">
+          <p className="text-sm text-ink">
+            {gradedCount}문제 중 {correctCount}문제를 맞혔어요.
+          </p>
+          <Link to={`/archives/${archiveId}`} className="mt-4 inline-block text-primary">
+            아카이브로
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="p-6">
-      <Link to={`/archives/${archiveId}`} className="text-sm text-primary">
-        아카이브로
-      </Link>
+    <main>
+      <PageHeader backTo={`/archives/${archiveId}`} title="풀이 세션" />
+      <div className="p-6">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-muted">
+            {currentIndex + 1} / {queue.length}
+          </p>
+          <SegmentedControl
+            options={[
+              { value: "remaining", label: "남은 문제만" },
+              { value: "all", label: "전체 보기" },
+            ]}
+            value={showAll ? "all" : "remaining"}
+            onChange={(v) => applyShowAll(v === "all")}
+          />
+        </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-muted">
-          {currentIndex + 1} / {queue.length}
-        </p>
-        <button
-          type="button"
-          onClick={handleToggleShowAll}
-          className="shrink-0 whitespace-nowrap rounded-control border border-border bg-surface px-3 py-1.5 text-xs text-ink hover:border-primary"
-        >
-          {showAll ? "전체 보기 끄기" : "전체 보기"}
-        </button>
-      </div>
+        <p className="mt-4 whitespace-pre-wrap text-base text-ink">{currentQuestion.promptText}</p>
+        {currentQuestion.promptImage && (
+          <BlobImage
+            blob={currentQuestion.promptImage}
+            alt="문제 사진"
+            className="mt-3 max-h-64 rounded-card border border-border object-contain"
+          />
+        )}
 
-      <p className="mt-4 whitespace-pre-wrap text-base text-ink">{currentQuestion.promptText}</p>
-      {currentQuestion.promptImage && (
-        <BlobImage
-          blob={currentQuestion.promptImage}
-          alt="문제 사진"
-          className="mt-3 max-h-64 rounded-card border border-border object-contain"
-        />
-      )}
+        {currentQuestion.type === "mcq" && (
+          <div className="mt-4 flex flex-col gap-2">
+            {(currentQuestion.choices ?? []).map((choice, index) => (
+              <button
+                key={index}
+                type="button"
+                disabled={graded}
+                onClick={() => setSelectedChoice(index)}
+                className={`rounded-control border px-4 py-2 text-left text-sm font-medium ${mcqChoiceClass(index, currentQuestion, selectedChoice, graded)}`}
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        )}
 
-      {currentQuestion.type === "mcq" && (
-        <div className="mt-4 flex flex-col gap-2">
-          {(currentQuestion.choices ?? []).map((choice, index) => (
+        {currentQuestion.type === "ox" && (
+          <div className="mt-4 flex gap-2">
             <button
-              key={index}
               type="button"
               disabled={graded}
-              onClick={() => setSelectedChoice(index)}
-              className={`rounded-control border px-4 py-2 text-left text-sm font-medium ${mcqChoiceClass(index, currentQuestion, selectedChoice, graded)}`}
+              onClick={() => setSelectedOx(true)}
+              className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(true, currentQuestion, selectedOx, graded)}`}
             >
-              {choice}
+              O
             </button>
-          ))}
-        </div>
-      )}
+            <button
+              type="button"
+              disabled={graded}
+              onClick={() => setSelectedOx(false)}
+              className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(false, currentQuestion, selectedOx, graded)}`}
+            >
+              X
+            </button>
+          </div>
+        )}
 
-      {currentQuestion.type === "ox" && (
-        <div className="mt-4 flex gap-2">
-          <button
-            type="button"
-            disabled={graded}
-            onClick={() => setSelectedOx(true)}
-            className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(true, currentQuestion, selectedOx, graded)}`}
-          >
-            O
-          </button>
-          <button
-            type="button"
-            disabled={graded}
-            onClick={() => setSelectedOx(false)}
-            className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(false, currentQuestion, selectedOx, graded)}`}
-          >
-            X
-          </button>
-        </div>
-      )}
+        {currentQuestion.type === "essay" && (
+          <div className="mt-4">
+            {!revealed ? (
+              <p className="text-sm text-muted">정답을 확인하고 스스로 채점해 보세요.</p>
+            ) : (
+              <div>
+                <p className="text-sm font-medium text-ink">모범답안</p>
+                {currentQuestion.answerText && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
+                    {currentQuestion.answerText}
+                  </p>
+                )}
+                {currentQuestion.answerImage && (
+                  <BlobImage
+                    blob={currentQuestion.answerImage}
+                    alt="정답 사진"
+                    className="mt-3 max-h-64 rounded-card border border-border object-contain"
+                  />
+                )}
+                {!graded && (
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={grading}
+                      onClick={() => finalizeGrade(true)}
+                      className="flex-1 rounded-control border border-correct px-4 py-2 text-sm font-medium text-correct hover:bg-correct/10 disabled:opacity-60"
+                    >
+                      맞았어요
+                    </button>
+                    <button
+                      type="button"
+                      disabled={grading}
+                      onClick={() => finalizeGrade(false)}
+                      className="flex-1 rounded-control border border-wrong px-4 py-2 text-sm font-medium text-wrong hover:bg-wrong/10 disabled:opacity-60"
+                    >
+                      틀렸어요
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-      {currentQuestion.type === "essay" && (
-        <div className="mt-4">
-          {!revealed ? (
-            <p className="text-sm text-muted">정답을 확인하고 스스로 채점해 보세요.</p>
-          ) : (
-            <div>
-              <p className="text-sm font-medium text-ink">모범답안</p>
-              {currentQuestion.answerText && (
-                <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
-                  {currentQuestion.answerText}
-                </p>
-              )}
-              {currentQuestion.answerImage && (
-                <BlobImage
-                  blob={currentQuestion.answerImage}
-                  alt="정답 사진"
-                  className="mt-3 max-h-64 rounded-card border border-border object-contain"
-                />
-              )}
-              {!graded && (
-                <div className="mt-4 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={grading}
-                    onClick={() => finalizeGrade(true)}
-                    className="flex-1 rounded-control border border-correct px-4 py-2 text-sm font-medium text-correct hover:bg-correct/10 disabled:opacity-60"
-                  >
-                    맞았어요
-                  </button>
-                  <button
-                    type="button"
-                    disabled={grading}
-                    onClick={() => finalizeGrade(false)}
-                    className="flex-1 rounded-control border border-wrong px-4 py-2 text-sm font-medium text-wrong hover:bg-wrong/10 disabled:opacity-60"
-                  >
-                    틀렸어요
-                  </button>
-                </div>
+        {graded && wasCorrect !== null && (
+          <div
+            className={`mt-4 flex items-start gap-3 rounded-card border p-4 ${
+              wasCorrect ? "border-correct/30 bg-correct/5" : "border-wrong/30 bg-wrong/5"
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold text-white ${
+                wasCorrect ? "bg-correct" : "bg-wrong"
+              }`}
+            >
+              {wasCorrect ? "O" : "X"}
+            </span>
+            <div className="flex min-h-9 flex-col justify-center">
+              <p
+                className={`text-base font-semibold ${wasCorrect ? "text-correct" : "text-wrong"}`}
+              >
+                {wasCorrect ? "맞았어요" : "틀렸어요"}
+              </p>
+              {!wasCorrect && currentQuestion.type !== "essay" && (
+                <p className="mt-1 text-sm text-muted">{referenceAnswerText(currentQuestion)}</p>
               )}
             </div>
+          </div>
+        )}
+
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+          {currentQuestion.type === "essay" && !revealed && (
+            <button
+              type="button"
+              onClick={() => setRevealed(true)}
+              className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              정답 보기
+            </button>
+          )}
+          {currentQuestion.type !== "essay" && !graded && (
+            <button
+              type="button"
+              onClick={handleGrade}
+              disabled={
+                grading ||
+                (currentQuestion.type === "mcq" && selectedChoice === null) ||
+                (currentQuestion.type === "ox" && selectedOx === null)
+              }
+              className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
+            >
+              채점하기
+            </button>
+          )}
+          {graded && (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
+            >
+              다음 문제
+            </button>
           )}
         </div>
-      )}
-
-      {graded && wasCorrect !== null && (
-        <div className="mt-4">
-          <p className={`text-2xl font-semibold ${wasCorrect ? "text-correct" : "text-wrong"}`}>
-            {wasCorrect ? "O 맞았어요" : "X 틀렸어요"}
-          </p>
-          {!wasCorrect && currentQuestion.type !== "essay" && (
-            <p className="mt-1 text-sm text-muted">{referenceAnswerText(currentQuestion)}</p>
-          )}
-        </div>
-      )}
-
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        {currentQuestion.type === "essay" && !revealed && (
-          <button
-            type="button"
-            onClick={() => setRevealed(true)}
-            className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-          >
-            정답 보기
-          </button>
-        )}
-        {currentQuestion.type !== "essay" && !graded && (
-          <button
-            type="button"
-            onClick={handleGrade}
-            disabled={
-              grading ||
-              (currentQuestion.type === "mcq" && selectedChoice === null) ||
-              (currentQuestion.type === "ox" && selectedOx === null)
-            }
-            className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
-          >
-            채점하기
-          </button>
-        )}
-        {graded && (
-          <button
-            type="button"
-            onClick={handleNext}
-            className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
-          >
-            다음 문제
-          </button>
-        )}
       </div>
     </main>
   );
