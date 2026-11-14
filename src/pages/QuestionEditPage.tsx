@@ -24,12 +24,13 @@ export default function QuestionEditPage() {
   );
   const [type, setType] = useState<QuestionType | null>(null);
   const [promptText, setPromptText] = useState("");
-  const [promptImage, setPromptImage] = useState<Blob | undefined>(undefined);
+  const [promptImages, setPromptImages] = useState<Blob[]>([]);
   const [choices, setChoices] = useState<string[]>(["", ""]);
   const [correctChoice, setCorrectChoice] = useState<number | null>(null);
   const [answerText, setAnswerText] = useState("");
-  const [answerImage, setAnswerImage] = useState<Blob | undefined>(undefined);
+  const [answerImages, setAnswerImages] = useState<Blob[]>([]);
   const [oxItems, setOxItems] = useState<OxItemDraft[]>([EMPTY_OX_ITEM]);
+  const [explanation, setExplanation] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -42,13 +43,14 @@ export default function QuestionEditPage() {
       if (!q) return;
       setType(q.type);
       setPromptText(q.promptText ?? "");
-      setPromptImage(q.promptImage);
+      setPromptImages(q.promptImages);
+      setExplanation(q.explanation ?? "");
       if (q.type === "mcq") {
         setChoices(q.choices && q.choices.length >= 2 ? q.choices : ["", ""]);
         setCorrectChoice(q.correctChoice ?? null);
       } else if (q.type === "essay") {
         setAnswerText(q.answerText ?? "");
-        setAnswerImage(q.answerImage);
+        setAnswerImages(q.answerImages);
       } else if (q.type === "ox") {
         setOxItems(q.oxItems && q.oxItems.length > 0 ? q.oxItems : [EMPTY_OX_ITEM]);
       }
@@ -85,18 +87,14 @@ export default function QuestionEditPage() {
     current: string,
     setter: (value: string) => void,
   ) {
-    if (!current.trim()) {
-      setter(recognized);
-      return;
-    }
-    if (window.confirm("인식된 텍스트로 기존 입력을 덮어쓸까요?")) {
-      setter(recognized);
-    }
+    // With several photos, each recognition adds its part instead of
+    // replacing what earlier photos produced.
+    setter(current.trim() ? `${current.trimEnd()}\n\n${recognized}` : recognized);
   }
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
-    if (!promptText.trim() && !promptImage) {
+    if (!promptText.trim() && promptImages.length === 0) {
       setFormError("문제 내용을 입력하거나 사진을 넣어 주세요");
       return;
     }
@@ -143,7 +141,8 @@ export default function QuestionEditPage() {
           case "mcq":
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
-              promptImage,
+              promptImages,
+              explanation: explanation.trim(),
               choices: choices.map((c) => c.trim()),
               correctChoice: correctChoice as number,
             });
@@ -151,15 +150,17 @@ export default function QuestionEditPage() {
           case "essay":
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
-              promptImage,
+              promptImages,
+              explanation: explanation.trim(),
               answerText: answerText.trim(),
-              answerImage,
+              answerImages,
             });
             break;
           case "ox":
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
-              promptImage,
+              promptImages,
+              explanation: explanation.trim(),
               oxItems: oxItems.map((item) => ({
                 statement: item.statement.trim(),
                 answer: item.answer as boolean,
@@ -174,7 +175,9 @@ export default function QuestionEditPage() {
               archiveId,
               type: "mcq",
               promptText: promptText.trim(),
-              promptImage,
+              promptImages,
+              answerImages: [],
+              explanation: explanation.trim(),
               choices: choices.map((c) => c.trim()),
               correctChoice: correctChoice as number,
             });
@@ -184,9 +187,10 @@ export default function QuestionEditPage() {
               archiveId,
               type: "essay",
               promptText: promptText.trim(),
-              promptImage,
+              promptImages,
+              explanation: explanation.trim(),
               answerText: answerText.trim(),
-              answerImage,
+              answerImages,
             });
             break;
           case "ox":
@@ -194,7 +198,9 @@ export default function QuestionEditPage() {
               archiveId,
               type: "ox",
               promptText: promptText.trim(),
-              promptImage,
+              promptImages,
+              answerImages: [],
+              explanation: explanation.trim(),
               oxItems: oxItems.map((item) => ({
                 statement: item.statement.trim(),
                 answer: item.answer as boolean,
@@ -279,8 +285,8 @@ export default function QuestionEditPage() {
               className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
             />
             <ImageCaptureInput
-              image={promptImage}
-              onImageChange={setPromptImage}
+              images={promptImages}
+              onImagesChange={setPromptImages}
               onTextRecognized={(text) => applyRecognizedText(text, promptText, setPromptText)}
               label="문제 사진"
             />
@@ -341,8 +347,8 @@ export default function QuestionEditPage() {
                   className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
                 />
                 <ImageCaptureInput
-                  image={answerImage}
-                  onImageChange={setAnswerImage}
+                  images={answerImages}
+                  onImagesChange={setAnswerImages}
                   onTextRecognized={(text) => applyRecognizedText(text, answerText, setAnswerText)}
                   label="정답 사진"
                 />
@@ -405,6 +411,21 @@ export default function QuestionEditPage() {
               </div>
             )}
           </section>
+
+          {type !== null && (
+            <section className="mt-6">
+              <h2 className="text-base font-semibold text-ink">
+                해설 <span className="text-sm font-normal text-muted">(선택)</span>
+              </h2>
+              <textarea
+                value={explanation}
+                onChange={(e) => setExplanation(e.target.value)}
+                placeholder="왜 이게 정답인지, 헷갈렸던 부분을 적어 두세요"
+                rows={3}
+                className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+              />
+            </section>
+          )}
 
           {formError && <p className="mt-4 text-sm text-wrong">{formError}</p>}
 

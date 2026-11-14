@@ -8,6 +8,8 @@ function makeQuestion(id: string, status: Status): Question {
     archiveId: "archive-1",
     type: "ox",
     oxItems: [{ statement: "", answer: true }],
+    promptImages: [],
+    answerImages: [],
     annotations: [],
     status,
     createdAt: 0,

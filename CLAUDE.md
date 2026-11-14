@@ -75,19 +75,13 @@ export interface Archive {
   createdAt: number;
 }
 
-export type Annotation =
-  | {
-      target: "text";
-      field: "answerText";
-      start: number;
-      end: number; // 문자 offset
-      style: "highlight" | "underline";
-    }
-  | {
-      target: "image";
-      field: "promptImage" | "answerImage";
-      paths: { d: string; style: "highlight" | "underline" }[];
-    }; // SVG path — ver.0에선 미사용(사진 주석 제거됨)
+export type Annotation = {
+  target: "text";
+  field: "answerText";
+  start: number;
+  end: number; // 문자 offset
+  style: "highlight" | "underline";
+};
 
 export interface OxItem {
   statement: string; // 항목 지문 (사진 문제면 비워둘 수 있음)
@@ -100,13 +94,14 @@ export interface Question {
   type: QuestionType;
 
   promptText?: string; // 문제(글) — 글/사진 중 하나는 필수
-  promptImage?: Blob; // 문제(사진 원본)
+  promptImages: Blob[]; // 문제(사진 원본, 최대 10장)
   answerText?: string; // 정답(글)
-  answerImage?: Blob; // 정답(사진 원본)
+  answerImages: Blob[]; // 정답(사진 원본, 최대 10장)
 
   choices?: string[]; // mcq 보기
   correctChoice?: number; // mcq 정답 index
   oxItems?: OxItem[]; // ox 항목들 — 전부 맞아야 정답
+  explanation?: string; // 해설 (선택, 모든 유형) — 채점 후(서술형은 정답 펼친 후) 표시
 
   annotations: Annotation[];
   status: Status;
@@ -120,7 +115,7 @@ export interface Question {
 DB 내부에는 `{ buffer: ArrayBuffer, type }`(`StoredImage`)로 저장하고, `api/` 경계에서 `Blob`으로 변환한다.
 컴포넌트는 항상 `Blob`만 본다.
 
-스키마 버전: v2에서 `oxAnswer` → `oxItems`(1개 항목) 마이그레이션. 스키마를 바꾸면 `db/schema.ts`에 새 버전 + upgrade를 추가할 것.
+스키마 버전: v2 `oxAnswer` → `oxItems`(1개 항목), v3 `promptImage`/`answerImage` → `promptImages`/`answerImages`(배열) + 사진 주석 제거. 스키마를 바꾸면 `db/schema.ts`에 새 버전 + upgrade를 추가할 것.
 
 ---
 
@@ -189,7 +184,7 @@ DB 내부에는 `{ buffer: ArrayBuffer, type }`(`StoredImage`)로 저장하고, 
 한 Phase 끝날 때마다 커밋하고 사람이 리뷰한다. 다음 Phase로 임의 진행 금지.
 
 **현재 상태:** Phase 1–6 완료, https://review-note.vercel.app 배포(main push 시 자동 배포).
-이후 추가: 사진만으로 문제 등록, OCR 전처리, OX 다항목.
+이후 추가: 사진만으로 문제 등록, OCR 전처리, OX 다항목, 문제·정답 사진 여러 장, 해설(선택).
 
 ---
 
@@ -216,6 +211,7 @@ DB 내부에는 `{ buffer: ArrayBuffer, type }`(`StoredImage`)로 저장하고, 
   이메일은 비즈 앱 심사가 필요하니 받지 않는다(카카오 id + 닉네임만).
 - **오프라인 미지원.** 서버(Atlas)가 유일한 source of truth. 브라우저 사본·동기화 없음.
 - **사진도 Atlas에 바이너리로 저장**(`images` 컬렉션), `/api/images/:id`로 본인 것만 제공. 가득 차면 그때 R2로 이전.
+  문제당 사진이 여러 장이므로 **사진은 1장씩 따로 업로드**(4.5MB 요청 제한) → 문제 문서엔 이미지 id 배열만 저장.
 - **OCR은 CLOVA.** Secret Key는 서버 환경변수에만. `util/ocr.ts`의 `recognizeText(image, onProgress)` 시그니처 유지.
   로그인 사용자만 호출 가능, `ocrUsage`로 월 건수를 세서 **900건에서 차단**(초과 시 과금되므로) → "직접 입력해 주세요" 안내.
 - **기존 로컬 데이터 이전:** 첫 로그인 시 IndexedDB에 데이터가 있으면 "이 기기의 문제 N개를 계정으로 옮길까요?" 1회 제안.

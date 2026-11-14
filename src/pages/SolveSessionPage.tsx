@@ -295,12 +295,17 @@ export default function SolveSessionPage() {
         {currentQuestion.promptText?.trim() && (
           <p className="mt-4 whitespace-pre-wrap text-base text-ink">{currentQuestion.promptText}</p>
         )}
-        {currentQuestion.promptImage && (
-          <BlobImage
-            blob={currentQuestion.promptImage}
-            alt="문제 사진"
-            className="mt-3 max-h-64 rounded-card border border-border object-contain"
-          />
+        {currentQuestion.promptImages.length > 0 && (
+          <div className="mt-3 flex flex-col gap-3">
+            {currentQuestion.promptImages.map((image, index) => (
+              <BlobImage
+                key={index}
+                blob={image}
+                alt={`문제 사진 ${index + 1}`}
+                className="max-h-64 rounded-card border border-border object-contain"
+              />
+            ))}
+          </div>
         )}
 
         {currentQuestion.type === "mcq" && (
@@ -382,12 +387,17 @@ export default function SolveSessionPage() {
                     />
                   </div>
                 )}
-                {currentQuestion.answerImage && (
-                  <BlobImage
-                    blob={currentQuestion.answerImage}
-                    alt="정답 사진"
-                    className="mt-3 max-h-64 rounded-card border border-border object-contain"
-                  />
+                {currentQuestion.answerImages.length > 0 && (
+                  <div className="mt-3 flex flex-col gap-3">
+                    {currentQuestion.answerImages.map((image, index) => (
+                      <BlobImage
+                        key={index}
+                        blob={image}
+                        alt={`정답 사진 ${index + 1}`}
+                        className="max-h-64 rounded-card border border-border object-contain"
+                      />
+                    ))}
+                  </div>
                 )}
                 {!graded && (
                   <div className="mt-4 flex gap-2">
@@ -440,6 +450,16 @@ export default function SolveSessionPage() {
             </div>
           </div>
         )}
+
+        {currentQuestion.explanation?.trim() &&
+          (currentQuestion.type === "essay" ? revealed : graded) && (
+            <div className="mt-4 rounded-card border border-border bg-surface p-4">
+              <p className="text-sm font-medium text-ink">해설</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
+                {currentQuestion.explanation}
+              </p>
+            </div>
+          )}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           {currentQuestion.type === "essay" && !revealed && (

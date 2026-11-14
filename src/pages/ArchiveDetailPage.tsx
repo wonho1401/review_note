@@ -19,7 +19,7 @@ function previewText(question: Question): string {
   if (text) {
     return text.length > 40 ? `${text.slice(0, 40)}…` : text;
   }
-  if (question.promptImage) return "(사진 문제)";
+  if (question.promptImages.length > 0) return `(사진 ${question.promptImages.length}장)`;
   return "(내용 없음)";
 }
 

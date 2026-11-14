@@ -2,29 +2,29 @@ import { db, type StoredImage, type StoredQuestion } from "@/db/schema";
 import { createId } from "@/util/id";
 import type { Question } from "@/types/domain";
 
-async function toStoredImage(blob: Blob | undefined): Promise<StoredImage | undefined> {
-  if (!blob) return undefined;
-  return { buffer: await blob.arrayBuffer(), type: blob.type };
+async function toStoredImages(blobs: Blob[]): Promise<StoredImage[]> {
+  return Promise.all(
+    blobs.map(async (blob) => ({ buffer: await blob.arrayBuffer(), type: blob.type })),
+  );
 }
 
-function fromStoredImage(stored: StoredImage | undefined): Blob | undefined {
-  if (!stored) return undefined;
-  return new Blob([stored.buffer], { type: stored.type });
+function fromStoredImages(stored: StoredImage[] | undefined): Blob[] {
+  return (stored ?? []).map((image) => new Blob([image.buffer], { type: image.type }));
 }
 
 async function toStoredQuestion(question: Question): Promise<StoredQuestion> {
   return {
     ...question,
-    promptImage: await toStoredImage(question.promptImage),
-    answerImage: await toStoredImage(question.answerImage),
+    promptImages: await toStoredImages(question.promptImages),
+    answerImages: await toStoredImages(question.answerImages),
   };
 }
 
 function fromStoredQuestion(stored: StoredQuestion): Question {
   return {
     ...stored,
-    promptImage: fromStoredImage(stored.promptImage),
-    answerImage: fromStoredImage(stored.answerImage),
+    promptImages: fromStoredImages(stored.promptImages),
+    answerImages: fromStoredImages(stored.answerImages),
   };
 }
 
@@ -61,16 +61,16 @@ export async function updateQuestion(
   id: string,
   changes: Partial<Omit<Question, "id" | "archiveId" | "createdAt">>,
 ): Promise<void> {
-  const { promptImage, answerImage, ...rest } = changes;
+  const { promptImages, answerImages, ...rest } = changes;
   const storedChanges: Partial<StoredQuestion> = {
     ...rest,
     updatedAt: Date.now(),
   };
-  if ("promptImage" in changes) {
-    storedChanges.promptImage = await toStoredImage(promptImage);
+  if (promptImages) {
+    storedChanges.promptImages = await toStoredImages(promptImages);
   }
-  if ("answerImage" in changes) {
-    storedChanges.answerImage = await toStoredImage(answerImage);
+  if (answerImages) {
+    storedChanges.answerImages = await toStoredImages(answerImages);
   }
   await db.questions.update(id, storedChanges);
 }

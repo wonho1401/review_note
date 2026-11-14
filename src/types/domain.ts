@@ -7,19 +7,13 @@ export interface Archive {
   createdAt: number;
 }
 
-export type Annotation =
-  | {
-      target: "text";
-      field: "answerText";
-      start: number;
-      end: number; // 문자 offset
-      style: "highlight" | "underline";
-    }
-  | {
-      target: "image";
-      field: "promptImage" | "answerImage";
-      paths: { d: string; style: "highlight" | "underline" }[];
-    }; // SVG path
+export type Annotation = {
+  target: "text";
+  field: "answerText";
+  start: number;
+  end: number; // 문자 offset
+  style: "highlight" | "underline";
+};
 
 export interface OxItem {
   statement: string; // 항목 지문 (사진 문제면 비워둘 수 있음)
@@ -32,13 +26,14 @@ export interface Question {
   type: QuestionType;
 
   promptText?: string; // 문제(글)
-  promptImage?: Blob; // 문제(사진 원본)
+  promptImages: Blob[]; // 문제(사진 원본, 여러 장)
   answerText?: string; // 정답(글)
-  answerImage?: Blob; // 정답(사진 원본)
+  answerImages: Blob[]; // 정답(사진 원본, 여러 장)
 
   choices?: string[]; // mcq 보기
   correctChoice?: number; // mcq 정답 index
   oxItems?: OxItem[]; // ox 항목들 — 전부 맞아야 정답
+  explanation?: string; // 해설 (선택, 모든 유형)
 
   annotations: Annotation[];
   status: Status;
