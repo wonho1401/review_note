@@ -22,7 +22,7 @@ export async function createArchive(name: string): Promise<Archive> {
 
 export async function updateArchive(
   id: string,
-  changes: Partial<Pick<Archive, "name">>,
+  changes: Partial<Pick<Archive, "name" | "lastStudiedAt">>,
 ): Promise<void> {
   await db.archives.update(id, changes);
 }

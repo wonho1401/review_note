@@ -130,35 +130,36 @@ DB 내부에는 `{ buffer: ArrayBuffer, type }`(`StoredImage`)로 저장하고, 
 
 ---
 
-## 디자인 시스템 (인디고 중심 · 모던 · 심플)
+## 디자인 시스템 (Soft Indigo · 모던 · 심플)
 
-**컨셉:** 차분한 인디고/잉크 베이스 위에, **채점 마크(O/X)와 형광펜만** 색으로 튄다.
-"종이 오답노트의 교정 흔적"이 시그니처. 형광펜 노랑이 유일한 따뜻한 포인트 — 여기에만 대담함을 쓰고 나머지는 조용히.
+**컨셉:** 진한 인디고를 주인공으로, 연한 회보라 배경 위에 크게 둥근 흰 카드와 넉넉한 여백.
+풀이 화면은 인디고 배경 위로 흰 시트가 올라오는 구조. 색은 **채점(O/X)과 형광펜**에만 쓴다 — 형광펜 노랑이 유일한 따뜻한 포인트.
+시안: https://claude.ai/artifact/4Sdrrji9vt41aepRBAshuk (로그인 화면 포함)
 
-### 색상 토큰 (CSS 변수 / Tailwind @theme)
+### 색상 토큰 (`src/index.css`, CSS 변수 → Tailwind @theme)
 
 ```
---ink:            #1E1B4B   /* 기본 텍스트 (인디고 딥) */
---primary:        #4F46E5   /* 주요 액션 */
---primary-hover:  #4338CA
---bg:             #F7F7FC   /* 살짝 인디고 틴트 배경 */
---surface:        #FFFFFF   /* 카드 */
---border:         #E5E7F0
---muted:          #6B7280   /* 보조 텍스트 */
---correct:        #059669   /* O, 맞음 */
---wrong:          #E11D48   /* X, 틀림 */
---highlighter:    #FDE68A   /* 형광펜 (유일한 따뜻한 포인트) */
---underline:      #E11D48   /* 밑줄 */
+--ink #17153B        기본 텍스트          --muted #6B6A85     보조 텍스트
+--bg #F4F4FA         배경                 --surface #FFFFFF   카드
+--surface-sunken     입력칸 배경          --border #E7E7F1
+--primary #3B36DB    버튼 채움(흰 글자)    --brand             표면 위 인디고 글자·아이콘
+--primary-soft       연한 인디고 배경      --hero              풀이 화면·홈 히어로 카드 배경
+--correct / -soft    O, 맞음               --wrong / -soft     X, 틀림
+--amber / --teal / --neutral (+ -soft)    유형·상태 태그 (OX / 서술형 / 안 풀었어요)
+--highlighter #FDE68A 형광펜               --underline         밑줄
 ```
+
+다크 모드는 같은 이름에 값만 바꾼다. `--primary`(채움)와 `--brand`(글자)는 다크에서 값이 다르다 — 글자로 읽힐 만큼 밝은 인디고는 흰 글자를 올리면 대비가 부족하기 때문.
 
 ### 스타일 규칙
 
-- 반경: 카드·버튼 12px, 작은 요소 8px.
-- 여백 넉넉히. 그림자는 옅게 최소한만.
-- 다크 모드: `prefers-color-scheme` 기본 + 헤더 토글(`store/themeStore`, `data-theme` 속성). 형광펜은 두 모드 모두 노랑이므로 그 위 글자색은 잉크로 고정.
-- 폰트: Pretendard. 위계 — 화면 제목 20–24 semibold / 본문 15–16 regular / 캡션 13 muted.
-- 문구: 능동태·문장형·사용자 언어. 버튼은 동작 그대로("저장", "채점하기"). 빈 화면은 행동 유도("첫 아카이브를 만들어 보세요").
-- 품질 바닥선: **모바일 반응형**(사진 촬영이 모바일 주 사용처), 키보드 포커스 보임, `prefers-reduced-motion` 존중.
+- 반경: 카드 20px(`rounded-card`), 버튼·입력 14px(`rounded-control`), 시트 32px(`rounded-t-sheet`), 칩·필터는 pill.
+- 주요 버튼 높이 56px, 터치 영역 최소 44px. 그림자는 `shadow-card`(옅게)·`shadow-primary`(주요 버튼)만, 다크에선 없음.
+- 다크 모드: `prefers-color-scheme` 기본 + 헤더 토글(`store/themeStore`, `data-theme` 속성). 형광펜 위 글자색은 잉크로 고정.
+- 폰트: Pretendard. 위계 — 큰 제목 26 extrabold / 화면 제목 20 extrabold / 본문 15–16 / 캡션 12–13 muted.
+- 문구: 능동태·문장형·사용자 언어. 버튼은 동작 그대로("저장", "채점하기"). 상태는 **맞힘/틀림/남은/안 풀었어요**로만 쓴다(“졸업” 같은 비유 금지). 화면에서는 "아카이브" 대신 **"노트"**.
+- 빈 화면은 행동 유도("첫 노트를 만들어 보세요"). 확인·입력은 `BottomSheet`(네이티브 `<dialog>`).
+- 품질 바닥선: **모바일 우선**(앱 폭 최대 560px로 가운데 정렬), 키보드 포커스 보임, `prefers-reduced-motion` 존중.
 
 ---
 

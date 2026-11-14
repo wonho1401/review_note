@@ -76,7 +76,7 @@ export default function HighlightableText({
     <div>
       <p
         ref={containerRef}
-        className={`whitespace-pre-wrap text-sm text-ink ${editable ? "select-text" : ""}`}
+        className={`whitespace-pre-wrap text-[15px] leading-[1.8] text-ink ${editable ? "select-text" : ""}`}
       >
         {segments.map((segment, index) => {
           if (segment.style === "highlight") {
@@ -85,14 +85,14 @@ export default function HighlightableText({
               // same light yellow in dark mode, but --ink flips to a light
               // color too. Pin the mark's text to the light-mode ink value so
               // it stays readable against the (theme-invariant) highlighter.
-              <mark key={index} className="rounded bg-highlighter text-[#1e1b4b]">
+              <mark key={index} className="rounded bg-highlighter px-0.5 text-[#17153b]">
                 {segment.text}
               </mark>
             );
           }
           if (segment.style === "underline") {
             return (
-              <span key={index} className="underline decoration-wrong decoration-2 underline-offset-2">
+              <span key={index} className="underline decoration-underline decoration-2 underline-offset-[3px]">
                 {segment.text}
               </span>
             );
@@ -101,16 +101,16 @@ export default function HighlightableText({
         })}
       </p>
       {editable && (
-        <div className="mt-2">
+        <div className="mt-3 flex flex-col gap-2">
           <p className="text-xs text-muted">
-            {pending ? "선택한 부분을 표시해 보세요." : "텍스트를 드래그해서 선택하면 표시할 수 있어요."}
+            {pending ? "선택한 부분을 표시해 보세요" : "글자를 드래그해서 선택해 보세요"}
           </p>
-          <div className="mt-1 flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={!pending}
               onClick={() => applyStyle("highlight")}
-              className="rounded-control border border-border bg-highlighter/40 px-3 py-1.5 text-xs font-medium text-[#1e1b4b] hover:bg-highlighter/60 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-highlighter/40"
+              className="h-9 rounded-[10px] bg-highlighter px-3 text-xs font-bold text-[#17153b] disabled:cursor-not-allowed disabled:opacity-40"
             >
               형광펜
             </button>
@@ -118,7 +118,7 @@ export default function HighlightableText({
               type="button"
               disabled={!pending}
               onClick={() => applyStyle("underline")}
-              className="rounded-control border border-wrong px-3 py-1.5 text-xs font-medium text-wrong hover:bg-wrong/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="h-9 rounded-[10px] border border-border bg-surface px-3 text-xs font-bold text-ink underline decoration-underline decoration-2 underline-offset-[3px] disabled:cursor-not-allowed disabled:opacity-40"
             >
               밑줄
             </button>
@@ -126,9 +126,22 @@ export default function HighlightableText({
               <button
                 type="button"
                 onClick={onClearAll}
-                className="ml-auto rounded-control px-2 py-1 text-xs text-muted hover:text-wrong"
+                aria-label="표시 모두 지우기"
+                className="ml-auto flex h-9 w-9 items-center justify-center rounded-[10px] border border-border bg-surface text-muted hover:text-wrong"
               >
-                전체 지우기
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                </svg>
               </button>
             )}
           </div>

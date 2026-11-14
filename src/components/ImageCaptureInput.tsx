@@ -7,6 +7,9 @@ import BlobImage from "@/components/BlobImage";
 // per-request upload size).
 const MAX_IMAGES = 10;
 
+const TILE =
+  "flex h-19 w-19 flex-col items-center justify-center gap-1 rounded-control border-[1.5px] border-dashed border-border bg-surface text-xs font-bold text-brand hover:border-brand disabled:opacity-50";
+
 interface ImageCaptureInputProps {
   images: Blob[];
   onImagesChange: (images: Blob[]) => void;
@@ -20,14 +23,15 @@ export default function ImageCaptureInput({
   onTextRecognized,
   label,
 }: ImageCaptureInputProps) {
-  const [recognizingIndex, setRecognizingIndex] = useState<number | null>(null);
-  const [progress, setProgress] = useState(0);
+  // Which photo (by position) is being read, and that photo's progress.
+  const [ocrStep, setOcrStep] = useState<{ index: number; progress: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const remaining = MAX_IMAGES - images.length;
+  const busy = adding || ocrStep !== null;
 
   async function handleFilesSelected(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -51,22 +55,27 @@ export default function ImageCaptureInput({
     }
   }
 
-  async function handleRecognize(index: number) {
-    if (recognizingIndex !== null) return;
-    setRecognizingIndex(index);
-    setProgress(0);
+  async function handleRecognizeAll() {
+    if (busy || images.length === 0) return;
     setMessage(null);
+    const texts: string[] = [];
     try {
-      const text = await recognizeText(images[index], setProgress);
-      if (!text) {
-        setMessage("이미지에서 텍스트를 찾지 못했어요. 직접 입력해 주세요.");
+      for (let i = 0; i < images.length; i++) {
+        setOcrStep({ index: i, progress: 0 });
+        const text = await recognizeText(images[i], (progress) =>
+          setOcrStep({ index: i, progress }),
+        );
+        if (text) texts.push(text);
+      }
+      if (texts.length === 0) {
+        setMessage("사진에서 글자를 찾지 못했어요. 직접 입력해 주세요.");
         return;
       }
-      onTextRecognized(text);
+      onTextRecognized(texts.join("\n\n"));
     } catch {
-      setMessage("텍스트 인식에 실패했어요. 다시 시도하거나 직접 입력해 주세요.");
+      setMessage("글자 인식에 실패했어요. 다시 시도하거나 직접 입력해 주세요.");
     } finally {
-      setRecognizingIndex(null);
+      setOcrStep(null);
     }
   }
 
@@ -76,80 +85,144 @@ export default function ImageCaptureInput({
   }
 
   return (
-    <div className="mt-2 flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={remaining <= 0 || adding}
-          onClick={() => cameraInputRef.current?.click()}
-          className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink hover:border-primary disabled:opacity-50"
-        >
-          촬영
-        </button>
-        <button
-          type="button"
-          disabled={remaining <= 0 || adding}
-          onClick={() => galleryInputRef.current?.click()}
-          className="rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink hover:border-primary disabled:opacity-50"
-        >
-          갤러리에서 선택
-        </button>
-        <span className="text-xs text-muted">
-          {adding ? "사진을 넣는 중…" : `${images.length}/${MAX_IMAGES}장`}
-        </span>
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          aria-label={`${label} 촬영`}
-          className="hidden"
-          onChange={handleFilesSelected}
-        />
-        <input
-          ref={galleryInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          aria-label={`${label} 갤러리에서 선택`}
-          className="hidden"
-          onChange={handleFilesSelected}
-        />
-      </div>
-
-      {images.length > 0 && (
-        <ul className="flex flex-wrap gap-3">
-          {images.map((image, index) => (
-            // Blobs have no stable id. Index keys are safe: BlobImage rebuilds
-            // its object URL whenever the blob at that index changes.
-            <li key={index} className="flex w-28 flex-col gap-1">
-              <BlobImage
-                blob={image}
-                alt={`${label} ${index + 1}`}
-                className="h-28 w-28 rounded-control border border-border object-cover"
-              />
+    <div className="flex flex-col gap-3">
+      <ul className="flex flex-wrap gap-2.5">
+        {images.map((image, index) => (
+          // Blobs have no stable id. Index keys are safe: BlobImage rebuilds
+          // its object URL whenever the blob at that index changes.
+          <li key={index} className="relative">
+            <BlobImage
+              blob={image}
+              alt={`${label} ${index + 1}`}
+              className="h-19 w-19 rounded-control border border-border object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => handleRemove(index)}
+              disabled={busy}
+              aria-label={`${label} ${index + 1} 삭제`}
+              className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-ink text-surface disabled:opacity-50"
+            >
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </li>
+        ))}
+        {remaining > 0 && (
+          <>
+            <li>
               <button
                 type="button"
-                onClick={() => handleRecognize(index)}
-                disabled={recognizingIndex !== null}
-                className="rounded-control border border-primary px-2 py-1 text-xs text-primary hover:bg-primary hover:text-white disabled:opacity-60"
+                disabled={busy}
+                onClick={() => cameraInputRef.current?.click()}
+                className={TILE}
               >
-                {recognizingIndex === index
-                  ? `인식 중… ${Math.round(progress * 100)}%`
-                  : "텍스트 인식"}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRemove(index)}
-                aria-label={`${label} ${index + 1} 삭제`}
-                className="rounded-control px-2 py-1 text-xs text-wrong hover:underline"
-              >
-                삭제
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                  <circle cx="12" cy="13" r="3.5" />
+                </svg>
+                촬영
               </button>
             </li>
-          ))}
-        </ul>
-      )}
+            <li>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => galleryInputRef.current?.click()}
+                className={TILE}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="5" width="18" height="14" rx="3" />
+                  <circle cx="9" cy="10" r="1.6" />
+                  <path d="M21 16l-5-5-8 8" />
+                </svg>
+                앨범
+              </button>
+            </li>
+          </>
+        )}
+      </ul>
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        aria-label={`${label} 촬영`}
+        className="hidden"
+        onChange={handleFilesSelected}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        aria-label={`${label} 앨범에서 선택`}
+        className="hidden"
+        onChange={handleFilesSelected}
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        {images.length > 0 && (
+          <button
+            type="button"
+            onClick={handleRecognizeAll}
+            disabled={busy}
+            className="flex h-9 items-center gap-1.5 rounded-[10px] bg-primary-soft px-3 text-[13px] font-bold text-brand disabled:opacity-60"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 9h8M8 12h8M8 15h5" />
+            </svg>
+            {ocrStep
+              ? `글자 인식 중… ${images.length > 1 ? `${ocrStep.index + 1}/${images.length}장 ` : ""}${Math.round(ocrStep.progress * 100)}%`
+              : "사진에서 글자 가져오기"}
+          </button>
+        )}
+        {(adding || images.length > 0) && (
+          <span className="text-xs text-muted">
+            {adding ? "사진을 넣는 중…" : `${images.length}/${MAX_IMAGES}장`}
+          </span>
+        )}
+      </div>
 
       {message && <p className="text-xs text-wrong">{message}</p>}
     </div>

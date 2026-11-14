@@ -1,6 +1,6 @@
 import { db, type StoredImage, type StoredQuestion } from "@/db/schema";
 import { createId } from "@/util/id";
-import type { Question } from "@/types/domain";
+import type { ArchiveProgress, Question } from "@/types/domain";
 
 async function toStoredImages(blobs: Blob[]): Promise<StoredImage[]> {
   return Promise.all(
@@ -29,8 +29,28 @@ function fromStoredQuestion(stored: StoredQuestion): Question {
 }
 
 export async function listQuestionsByArchive(archiveId: string): Promise<Question[]> {
-  const stored = await db.questions.where("archiveId").equals(archiveId).toArray();
+  // Oldest first, so lists and solve sessions keep the order questions were added.
+  const stored = await db.questions.where("archiveId").equals(archiveId).sortBy("createdAt");
   return stored.map(fromStoredQuestion);
+}
+
+/**
+ * Per-archive status counts. Reads only the [archiveId+status] index keys, so
+ * no question records (and none of their photos) are loaded.
+ */
+export async function countQuestionsByArchive(): Promise<Record<string, ArchiveProgress>> {
+  const keys = await db.questions.orderBy("[archiveId+status]").keys();
+  const progress: Record<string, ArchiveProgress> = {};
+  for (const key of keys) {
+    if (!Array.isArray(key)) continue;
+    const [archiveId, status]: unknown[] = key;
+    if (typeof archiveId !== "string") continue;
+    const entry = (progress[archiveId] ??= { total: 0, correct: 0, wrong: 0 });
+    entry.total++;
+    if (status === "correct") entry.correct++;
+    if (status === "wrong") entry.wrong++;
+  }
+  return progress;
 }
 
 export async function getQuestion(id: string): Promise<Question | undefined> {

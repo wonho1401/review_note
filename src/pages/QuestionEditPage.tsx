@@ -1,9 +1,10 @@
 import { useEffect, useState, type SubmitEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { createQuestion, getQuestion, updateQuestion } from "@/api/question";
 import { QUESTION_TYPE_LABEL } from "@/constants/questionType";
 import ImageCaptureInput from "@/components/ImageCaptureInput";
 import PageHeader from "@/components/PageHeader";
+import RemoveButton from "@/components/RemoveButton";
 import SegmentedControl from "@/components/SegmentedControl";
 import type { Question, QuestionType } from "@/types/domain";
 
@@ -14,6 +15,12 @@ interface OxItemDraft {
 }
 
 const EMPTY_OX_ITEM: OxItemDraft = { statement: "", answer: null };
+
+const CARD = "flex flex-col gap-3 rounded-[22px] bg-surface p-4 shadow-card";
+const FIELD =
+  "w-full rounded-control border border-border bg-surface-sunken px-3 py-2.5 text-[15px] text-ink placeholder:text-muted";
+const ADD_ROW =
+  "h-10 rounded-[12px] border-[1.5px] border-dashed border-border bg-surface text-[13px] font-bold text-brand hover:border-brand";
 
 export default function QuestionEditPage() {
   const { archiveId, questionId } = useParams();
@@ -217,11 +224,8 @@ export default function QuestionEditPage() {
 
   if (!archiveId) {
     return (
-      <main className="p-6">
-        <p className="text-sm text-wrong">잘못된 접근입니다.</p>
-        <Link to="/" className="mt-4 inline-block text-primary">
-          홈으로
-        </Link>
+      <main>
+        <PageHeader backTo="/" title="잘못된 주소예요" />
       </main>
     );
   }
@@ -237,7 +241,7 @@ export default function QuestionEditPage() {
   if (questionId && loadedQuestion === null) {
     return (
       <main>
-        <PageHeader backTo={`/archives/${archiveId}`} title="문제를 찾을 수 없습니다" />
+        <PageHeader backTo={`/archives/${archiveId}`} title="문제를 찾을 수 없어요" />
       </main>
     );
   }
@@ -248,41 +252,37 @@ export default function QuestionEditPage() {
         backTo={`/archives/${archiveId}`}
         title={questionId ? "문제 편집" : "문제 추가"}
       />
-      <div className="p-6">
-        <form onSubmit={handleSubmit}>
-          <section>
-            <h2 className="text-base font-semibold text-ink">유형 선택</h2>
-            {questionId ? (
-              <>
-                <span className="mt-2 inline-flex items-center rounded-full border border-border bg-bg px-3 py-1 text-sm font-medium text-ink">
-                  {type ? QUESTION_TYPE_LABEL[type] : ""}
-                </span>
-                <p className="mt-1 text-xs text-muted">
-                  만든 뒤에는 문제 유형을 바꿀 수 없어요.
-                </p>
-              </>
-            ) : (
-              <div className="mt-2">
-                <SegmentedControl
-                  options={(["mcq", "essay", "ox"] as const).map((t) => ({
-                    value: t,
-                    label: QUESTION_TYPE_LABEL[t],
-                  }))}
-                  value={type}
-                  onChange={setType}
-                />
-              </div>
-            )}
-          </section>
+      <form onSubmit={handleSubmit} className="flex min-h-[calc(100svh-4.75rem)] flex-col">
+        <div className="flex flex-1 flex-col gap-3.5 px-5 pb-6 pt-2">
+          {questionId ? (
+            <p className="flex items-center gap-2 text-sm text-muted">
+              <span className="rounded-lg bg-primary-soft px-2 py-0.5 text-xs font-bold text-brand">
+                {type ? QUESTION_TYPE_LABEL[type] : ""}
+              </span>
+              만든 뒤에는 유형을 바꿀 수 없어요.
+            </p>
+          ) : (
+            <SegmentedControl
+              options={(["mcq", "essay", "ox"] as const).map((t) => ({
+                value: t,
+                label: QUESTION_TYPE_LABEL[t],
+              }))}
+              value={type}
+              onChange={setType}
+            />
+          )}
 
-          <section className="mt-6">
-            <h2 className="text-base font-semibold text-ink">문제 입력</h2>
+          <section className={CARD}>
+            <label htmlFor="prompt-text" className="text-sm font-bold text-ink">
+              문제
+            </label>
             <textarea
+              id="prompt-text"
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder="문제 내용을 입력하세요 (사진만 넣어도 돼요)"
-              rows={4}
-              className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+              placeholder="문제를 입력하거나 사진만 넣어도 돼요"
+              rows={3}
+              className={FIELD}
             />
             <ImageCaptureInput
               images={promptImages}
@@ -292,47 +292,49 @@ export default function QuestionEditPage() {
             />
           </section>
 
-          <section className="mt-6">
-            <h2 className="text-base font-semibold text-ink">정답 입력</h2>
-            {type === null && (
-              <p className="mt-2 text-sm text-muted">문제 유형을 먼저 선택해 주세요.</p>
-            )}
+          <section className={CARD}>
+            <h2 className="text-sm font-bold text-ink">정답</h2>
+            {type === null && <p className="text-sm text-muted">문제 유형을 먼저 골라 주세요.</p>}
 
             {type === "mcq" && (
-              <div className="mt-2 flex flex-col gap-2">
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-muted">정답인 보기의 동그라미를 눌러 주세요.</p>
                 {choices.map((choice, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="correctChoice"
-                      checked={correctChoice === index}
-                      onChange={() => setCorrectChoice(index)}
+                    <button
+                      type="button"
+                      onClick={() => setCorrectChoice(index)}
+                      aria-pressed={correctChoice === index}
                       aria-label={`보기 ${index + 1}번을 정답으로 표시`}
-                      className="h-4 w-4 accent-primary"
-                    />
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${
+                        correctChoice === index
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-surface-sunken text-muted"
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
                     <input
                       value={choice}
                       onChange={(e) => handleChoiceChange(index, e.target.value)}
                       placeholder={`보기 ${index + 1}`}
-                      className="min-w-0 flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+                      aria-label={`보기 ${index + 1} 내용`}
+                      className={`${FIELD} h-10 min-w-0 flex-1 py-0`}
                     />
                     {choices.length > 2 && (
-                      <button
-                        type="button"
+                      <RemoveButton
+                        label={`보기 ${index + 1} 삭제`}
                         onClick={() => handleRemoveChoice(index)}
-                        className="shrink-0 whitespace-nowrap rounded-control px-2 py-1 text-xs text-wrong hover:underline"
-                      >
-                        삭제
-                      </button>
+                      />
                     )}
                   </div>
                 ))}
                 <button
                   type="button"
                   onClick={() => setChoices((prev) => [...prev, ""])}
-                  className="mt-1 self-start rounded-control border border-border px-3 py-1.5 text-xs text-primary hover:border-primary"
+                  className={ADD_ROW}
                 >
-                  보기 추가
+                  + 보기 추가
                 </button>
               </div>
             )}
@@ -343,8 +345,9 @@ export default function QuestionEditPage() {
                   value={answerText}
                   onChange={(e) => setAnswerText(e.target.value)}
                   placeholder="모범답안을 입력하세요"
+                  aria-label="모범답안"
                   rows={4}
-                  className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+                  className={FIELD}
                 />
                 <ImageCaptureInput
                   images={answerImages}
@@ -356,32 +359,20 @@ export default function QuestionEditPage() {
             )}
 
             {type === "ox" && (
-              <div className="mt-2 flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 {oxItems.map((item, index) => (
-                  <div key={index} className="rounded-card border border-border bg-surface p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 shrink-0 text-sm font-semibold text-muted">
-                        {index + 1}
-                      </span>
-                      <input
-                        value={item.statement}
-                        onChange={(e) => handleOxItemChange(index, { statement: e.target.value })}
-                        placeholder={
-                          oxItems.length > 1 ? `항목 ${index + 1} 내용 (선택)` : "항목 내용 (선택)"
-                        }
-                        className="min-w-0 flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
-                      />
-                      {oxItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOxItem(index)}
-                          className="shrink-0 whitespace-nowrap rounded-control px-2 py-1 text-xs text-wrong hover:underline"
-                        >
-                          삭제
-                        </button>
-                      )}
-                    </div>
-                    <div className="mt-2 flex gap-2 pl-7">
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="w-4 shrink-0 text-[13px] font-extrabold text-brand">
+                      {index + 1}
+                    </span>
+                    <input
+                      value={item.statement}
+                      onChange={(e) => handleOxItemChange(index, { statement: e.target.value })}
+                      placeholder="항목 내용 (선택)"
+                      aria-label={`항목 ${index + 1} 내용`}
+                      className={`${FIELD} h-10 min-w-0 flex-1 py-0`}
+                    />
+                    <div className="flex shrink-0 gap-1">
                       {([true, false] as const).map((value) => (
                         <button
                           key={String(value)}
@@ -389,60 +380,67 @@ export default function QuestionEditPage() {
                           onClick={() => handleOxItemChange(index, { answer: value })}
                           aria-pressed={item.answer === value}
                           aria-label={`항목 ${index + 1} 정답 ${value ? "O" : "X"}`}
-                          className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${
+                          className={`h-10 w-10 rounded-[12px] border text-[15px] font-extrabold ${
                             item.answer === value
                               ? "border-primary bg-primary text-white"
-                              : "border-border bg-surface text-ink"
+                              : "border-border bg-surface-sunken text-ink"
                           }`}
                         >
                           {value ? "O" : "X"}
                         </button>
                       ))}
                     </div>
+                    {oxItems.length > 1 && (
+                      <RemoveButton
+                        label={`항목 ${index + 1} 삭제`}
+                        onClick={() => handleRemoveOxItem(index)}
+                      />
+                    )}
                   </div>
                 ))}
                 <button
                   type="button"
                   onClick={() => setOxItems((prev) => [...prev, EMPTY_OX_ITEM])}
-                  className="self-start rounded-control border border-border px-3 py-1.5 text-xs text-primary hover:border-primary"
+                  className={ADD_ROW}
                 >
-                  항목 추가
+                  + 항목 추가
                 </button>
               </div>
             )}
           </section>
 
           {type !== null && (
-            <section className="mt-6">
-              <h2 className="text-base font-semibold text-ink">
-                해설 <span className="text-sm font-normal text-muted">(선택)</span>
-              </h2>
+            <section className={CARD}>
+              <label htmlFor="explanation" className="text-sm font-bold text-ink">
+                해설 <span className="font-normal text-muted">(선택)</span>
+              </label>
               <textarea
+                id="explanation"
                 value={explanation}
                 onChange={(e) => setExplanation(e.target.value)}
                 placeholder="왜 이게 정답인지, 헷갈렸던 부분을 적어 두세요"
                 rows={3}
-                className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+                className={FIELD}
               />
             </section>
           )}
+        </div>
 
-          {formError && <p className="mt-4 text-sm text-wrong">{formError}</p>}
-
-          <div className="mt-6 flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
-            >
-              {saving ? "저장하는 중…" : "문제 저장"}
-            </button>
-            <Link to={`/archives/${archiveId}`} className="text-sm text-muted hover:text-ink">
-              취소
-            </Link>
-          </div>
-        </form>
-      </div>
+        <div className="sticky bottom-0 flex flex-col gap-2 border-t border-border bg-bg px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
+          {formError && (
+            <p role="alert" className="text-sm text-wrong">
+              {formError}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={saving}
+            className="h-14 rounded-[18px] bg-primary text-base font-bold text-white shadow-primary hover:bg-primary-hover disabled:opacity-60"
+          >
+            {saving ? "저장하는 중…" : "저장"}
+          </button>
+        </div>
+      </form>
     </main>
   );
 }

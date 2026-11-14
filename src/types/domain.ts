@@ -5,6 +5,14 @@ export interface Archive {
   id: string;
   name: string;
   createdAt: number;
+  lastStudiedAt?: number; // 마지막으로 채점한 시각 (홈 "이어서 복습"용)
+}
+
+/** 노트 하나의 문제 상태별 개수 */
+export interface ArchiveProgress {
+  total: number;
+  correct: number;
+  wrong: number;
 }
 
 export type Annotation = {

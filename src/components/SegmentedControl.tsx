@@ -15,7 +15,10 @@ export default function SegmentedControl<T extends string>({
   onChange,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="inline-flex gap-1 rounded-control border border-border bg-bg p-1">
+    <div
+      className="grid gap-1 rounded-control bg-neutral-soft p-1"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -24,8 +27,10 @@ export default function SegmentedControl<T extends string>({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(option.value)}
-            className={`rounded-control px-3 py-1.5 text-sm font-medium transition-colors ${
-              active ? "bg-surface text-primary shadow-sm" : "text-muted hover:text-ink"
+            className={`h-10 rounded-[11px] text-sm transition-colors ${
+              active
+                ? "bg-surface font-bold text-brand shadow-card"
+                : "font-medium text-neutral hover:text-ink"
             }`}
           >
             {option.label}
