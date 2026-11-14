@@ -1,9 +1,11 @@
-import { createWorker } from "tesseract.js";
+import { createWorker, PSM } from "tesseract.js";
+import { prepareOcrImage } from "@/util/prepareOcrImage";
 
 export async function recognizeText(
   image: Blob,
   onProgress?: (progress: number) => void,
 ): Promise<string> {
+  const prepared = await prepareOcrImage(image);
   const worker = await createWorker(["kor", "eng"], undefined, {
     logger: (m) => {
       if (m.status === "recognizing text") {
@@ -12,7 +14,11 @@ export async function recognizeText(
     },
   });
   try {
-    const { data } = await worker.recognize(image);
+    await worker.setParameters({
+      tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+      preserve_interword_spaces: "1",
+    });
+    const { data } = await worker.recognize(prepared);
     return cleanOcrText(data.text);
   } finally {
     await worker.terminate();

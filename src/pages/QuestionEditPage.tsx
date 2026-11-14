@@ -79,8 +79,8 @@ export default function QuestionEditPage() {
 
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
-    if (!promptText.trim()) {
-      setFormError("문제 내용을 입력해 주세요");
+    if (!promptText.trim() && !promptImage) {
+      setFormError("문제 내용을 입력하거나 사진을 넣어 주세요");
       return;
     }
     if (type === null) {
@@ -251,7 +251,7 @@ export default function QuestionEditPage() {
             <textarea
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder="문제 내용을 입력하세요"
+              placeholder="문제 내용을 입력하세요 (사진만 넣어도 돼요)"
               rows={4}
               className="mt-2 w-full rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
             />

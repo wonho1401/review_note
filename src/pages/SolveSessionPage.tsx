@@ -278,7 +278,9 @@ export default function SolveSessionPage() {
           />
         </div>
 
-        <p className="mt-4 whitespace-pre-wrap text-base text-ink">{currentQuestion.promptText}</p>
+        {currentQuestion.promptText?.trim() && (
+          <p className="mt-4 whitespace-pre-wrap text-base text-ink">{currentQuestion.promptText}</p>
+        )}
         {currentQuestion.promptImage && (
           <BlobImage
             blob={currentQuestion.promptImage}
