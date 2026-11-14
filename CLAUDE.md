@@ -5,7 +5,7 @@
 
 ---
 
-## ver.0 범위 (지금 만드는 것)
+## ver.0 범위 (완료)
 
 - **로컬 전용**: 백엔드·서버·로그인 없음. 모든 데이터는 브라우저(IndexedDB)에 저장.
 - Vercel **정적 배포**.
@@ -190,3 +190,79 @@ DB 내부에는 `{ buffer: ArrayBuffer, type }`(`StoredImage`)로 저장하고, 
 
 **현재 상태:** Phase 1–6 완료, https://review-note.vercel.app 배포(main push 시 자동 배포).
 이후 추가: 사진만으로 문제 등록, OCR 전처리, OX 다항목.
+
+---
+
+## ver.1 계획 (확정된 설계 · 아직 구현 안 함)
+
+원칙: **최대한 단순하게, 전부 무료.** 서비스는 Vercel · MongoDB Atlas · 카카오 · CLOVA 4개만.
+
+```
+[브라우저 React 앱] ── src/api/* (fetch로 교체, 화면 코드는 그대로)
+        ▼
+[Vercel 한 프로젝트]
+  ├─ 정적 프론트 (지금과 동일)
+  └─ /api/*  서버리스 함수 1개 (Hono 라우팅)
+       ├─ 로그인 ────▶ 카카오 OAuth (REST API, SDK 없이)
+       ├─ 데이터/사진 ─▶ MongoDB Atlas M0 (512MB)
+       └─ OCR ──────▶ 네이버 CLOVA OCR (월 1000건 무료)
+```
+
+### 확정 사항
+
+- **로그인: 카카오만. 로그인 필수**(비로그인 사용 없음).
+  흐름: `/api/auth/kakao` → 카카오 인가 → `/api/auth/kakao/callback`에서 code→토큰 교환 →
+  `/v2/user/me`로 카카오 id·닉네임 조회 → `users` upsert → 서명된 세션 쿠키(httpOnly, Secure, SameSite=Lax) 발급.
+  이메일은 비즈 앱 심사가 필요하니 받지 않는다(카카오 id + 닉네임만).
+- **오프라인 미지원.** 서버(Atlas)가 유일한 source of truth. 브라우저 사본·동기화 없음.
+- **사진도 Atlas에 바이너리로 저장**(`images` 컬렉션), `/api/images/:id`로 본인 것만 제공. 가득 차면 그때 R2로 이전.
+- **OCR은 CLOVA.** Secret Key는 서버 환경변수에만. `util/ocr.ts`의 `recognizeText(image, onProgress)` 시그니처 유지.
+  로그인 사용자만 호출 가능, `ocrUsage`로 월 건수를 세서 **900건에서 차단**(초과 시 과금되므로) → "직접 입력해 주세요" 안내.
+- **기존 로컬 데이터 이전:** 첫 로그인 시 IndexedDB에 데이터가 있으면 "이 기기의 문제 N개를 계정으로 옮길까요?" 1회 제안.
+  이전 기능 때문에 Dexie는 그 용도로만 남긴다.
+
+### 무료 한도 · 제약 (지킬 것)
+
+- Vercel Hobby: 요청 본문 **4.5MB** 제한(사진은 업로드 전 1600px JPEG로 리사이즈 유지), 함수 개수 제한 → **catch-all 함수 1개 + Hono**. 비상업 용도만.
+- Atlas M0: 512MB. 네트워크 접근은 `0.0.0.0/0`(Vercel IP가 고정 아님) → 접속 정보는 환경변수로만.
+- 서버리스에서 Mongo 연결은 모듈 스코프에 캐싱해 재사용.
+- 모든 문서에 `userId`를 두고, **모든 조회·수정은 세션의 userId로 필터**(남의 데이터 접근 차단).
+
+### API (초안)
+
+```
+GET    /api/auth/kakao                  카카오 인가 페이지로 리다이렉트
+GET    /api/auth/kakao/callback         토큰 교환 → 세션 쿠키 → 앱으로 리다이렉트
+POST   /api/auth/logout
+GET    /api/me
+GET    /api/archives                    POST   /api/archives
+PATCH  /api/archives/:id                DELETE /api/archives/:id
+GET    /api/archives/:id/questions      POST   /api/archives/:id/questions
+PATCH  /api/questions/:id               DELETE /api/questions/:id
+GET    /api/images/:id
+POST   /api/ocr
+```
+
+컬렉션: `users`, `archives`, `questions`, `images`, `ocrUsage`.
+
+### 환경변수 (Vercel에만, 저장소 커밋 금지)
+
+`MONGODB_URI`, `SESSION_SECRET`, `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REDIRECT_URI`,
+`CLOVA_OCR_INVOKE_URL`, `CLOVA_OCR_SECRET`. 로컬은 `.env.local`(gitignore의 `*.local`로 이미 제외됨).
+
+### 빌드 순서 (ver.1)
+
+- **Phase 7** — 서버 기반: `/api` catch-all + Hono, Atlas 연결, 환경변수, 헬스체크, 로컬 개발(`vercel dev`).
+- **Phase 8** — 카카오 로그인 + 세션 쿠키 + 로그인 필수 라우트 가드 + 로그아웃.
+- **Phase 9** — 아카이브·문제·사진 API → `src/api/*`를 fetch로 교체.
+- **Phase 10** — CLOVA OCR 프록시 + 월 900건 한도.
+- **Phase 11** — 로컬 데이터 이전 + 다듬기 + 배포.
+
+ver.0과 같이 Phase마다 커밋하고 사람이 리뷰. 착수는 ver.0 사용자 피드백 반영 후.
+
+### 착수 전 사용자가 준비할 것
+
+- 카카오 개발자 콘솔: 앱 생성, 카카오 로그인 활성화, Redirect URI 등록
+  (`https://review-note.vercel.app/api/auth/kakao/callback`, 로컬 `http://localhost:3000/api/auth/kakao/callback`), 동의항목 닉네임, Client Secret 발급.
+- MongoDB Atlas: M0 클러스터 생성, DB 유저, 네트워크 `0.0.0.0/0`.
+- 네이버 클라우드: CLOVA OCR 도메인 생성(General), APIGW Invoke URL + Secret Key 발급. 무료 건수·과금 조건 콘솔에서 재확인.
