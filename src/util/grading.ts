@@ -7,9 +7,15 @@ export function gradeMcq(
   return question.correctChoice !== undefined && selectedChoice === question.correctChoice;
 }
 
+/** Correct only when every item is answered and matches its answer. */
 export function gradeOx(
-  question: Pick<Question, "oxAnswer">,
-  selectedAnswer: boolean,
+  question: Pick<Question, "oxItems">,
+  selectedAnswers: readonly (boolean | null)[],
 ): boolean {
-  return question.oxAnswer !== undefined && selectedAnswer === question.oxAnswer;
+  const items = question.oxItems ?? [];
+  return (
+    items.length > 0 &&
+    selectedAnswers.length === items.length &&
+    items.every((item, i) => selectedAnswers[i] === item.answer)
+  );
 }

@@ -7,7 +7,7 @@ function makeQuestion(id: string, status: Status): Question {
     id,
     archiveId: "archive-1",
     type: "ox",
-    oxAnswer: true,
+    oxItems: [{ statement: "", answer: true }],
     annotations: [],
     status,
     createdAt: 0,

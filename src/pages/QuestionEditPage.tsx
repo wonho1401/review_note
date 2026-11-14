@@ -7,6 +7,14 @@ import PageHeader from "@/components/PageHeader";
 import SegmentedControl from "@/components/SegmentedControl";
 import type { Question, QuestionType } from "@/types/domain";
 
+// Editing state for one OX item: the answer stays null until the user picks it.
+interface OxItemDraft {
+  statement: string;
+  answer: boolean | null;
+}
+
+const EMPTY_OX_ITEM: OxItemDraft = { statement: "", answer: null };
+
 export default function QuestionEditPage() {
   const { archiveId, questionId } = useParams();
   const navigate = useNavigate();
@@ -21,7 +29,7 @@ export default function QuestionEditPage() {
   const [correctChoice, setCorrectChoice] = useState<number | null>(null);
   const [answerText, setAnswerText] = useState("");
   const [answerImage, setAnswerImage] = useState<Blob | undefined>(undefined);
-  const [oxAnswer, setOxAnswer] = useState<boolean | null>(null);
+  const [oxItems, setOxItems] = useState<OxItemDraft[]>([EMPTY_OX_ITEM]);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -42,7 +50,7 @@ export default function QuestionEditPage() {
         setAnswerText(q.answerText ?? "");
         setAnswerImage(q.answerImage);
       } else if (q.type === "ox") {
-        setOxAnswer(q.oxAnswer ?? null);
+        setOxItems(q.oxItems && q.oxItems.length > 0 ? q.oxItems : [EMPTY_OX_ITEM]);
       }
     });
     return () => {
@@ -61,6 +69,15 @@ export default function QuestionEditPage() {
       if (prev === null || prev === index) return null;
       return prev > index ? prev - 1 : prev;
     });
+  }
+
+  function handleOxItemChange(index: number, changes: Partial<OxItemDraft>) {
+    setOxItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...changes } : item)));
+  }
+
+  function handleRemoveOxItem(index: number) {
+    if (oxItems.length <= 1) return;
+    setOxItems((prev) => prev.filter((_, i) => i !== index));
   }
 
   function applyRecognizedText(
@@ -109,8 +126,8 @@ export default function QuestionEditPage() {
         }
         break;
       case "ox":
-        if (oxAnswer === null) {
-          setFormError("정답(O/X)을 선택해 주세요");
+        if (oxItems.some((item) => item.answer === null)) {
+          setFormError("모든 항목의 정답(O/X)을 선택해 주세요");
           return;
         }
         break;
@@ -143,7 +160,10 @@ export default function QuestionEditPage() {
             await updateQuestion(questionId, {
               promptText: promptText.trim(),
               promptImage,
-              oxAnswer: oxAnswer as boolean,
+              oxItems: oxItems.map((item) => ({
+                statement: item.statement.trim(),
+                answer: item.answer as boolean,
+              })),
             });
             break;
         }
@@ -175,7 +195,10 @@ export default function QuestionEditPage() {
               type: "ox",
               promptText: promptText.trim(),
               promptImage,
-              oxAnswer: oxAnswer as boolean,
+              oxItems: oxItems.map((item) => ({
+                statement: item.statement.trim(),
+                answer: item.answer as boolean,
+              })),
             });
             break;
         }
@@ -327,28 +350,57 @@ export default function QuestionEditPage() {
             )}
 
             {type === "ox" && (
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex flex-col gap-3">
+                {oxItems.map((item, index) => (
+                  <div key={index} className="rounded-card border border-border bg-surface p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 shrink-0 text-sm font-semibold text-muted">
+                        {index + 1}
+                      </span>
+                      <input
+                        value={item.statement}
+                        onChange={(e) => handleOxItemChange(index, { statement: e.target.value })}
+                        placeholder={
+                          oxItems.length > 1 ? `항목 ${index + 1} 내용 (선택)` : "항목 내용 (선택)"
+                        }
+                        className="min-w-0 flex-1 rounded-control border border-border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted"
+                      />
+                      {oxItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOxItem(index)}
+                          className="shrink-0 whitespace-nowrap rounded-control px-2 py-1 text-xs text-wrong hover:underline"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 flex gap-2 pl-7">
+                      {([true, false] as const).map((value) => (
+                        <button
+                          key={String(value)}
+                          type="button"
+                          onClick={() => handleOxItemChange(index, { answer: value })}
+                          aria-pressed={item.answer === value}
+                          aria-label={`항목 ${index + 1} 정답 ${value ? "O" : "X"}`}
+                          className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${
+                            item.answer === value
+                              ? "border-primary bg-primary text-white"
+                              : "border-border bg-surface text-ink"
+                          }`}
+                        >
+                          {value ? "O" : "X"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
                 <button
                   type="button"
-                  onClick={() => setOxAnswer(true)}
-                  className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${
-                    oxAnswer === true
-                      ? "border-primary bg-primary text-white"
-                      : "border-border bg-surface text-ink"
-                  }`}
+                  onClick={() => setOxItems((prev) => [...prev, EMPTY_OX_ITEM])}
+                  className="self-start rounded-control border border-border px-3 py-1.5 text-xs text-primary hover:border-primary"
                 >
-                  O
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOxAnswer(false)}
-                  className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${
-                    oxAnswer === false
-                      ? "border-primary bg-primary text-white"
-                      : "border-border bg-surface text-ink"
-                  }`}
-                >
-                  X
+                  항목 추가
                 </button>
               </div>
             )}

@@ -21,6 +21,11 @@ export type Annotation =
       paths: { d: string; style: "highlight" | "underline" }[];
     }; // SVG path
 
+export interface OxItem {
+  statement: string; // 항목 지문 (사진 문제면 비워둘 수 있음)
+  answer: boolean; // 정답 O = true
+}
+
 export interface Question {
   id: string;
   archiveId: string;
@@ -33,7 +38,7 @@ export interface Question {
 
   choices?: string[]; // mcq 보기
   correctChoice?: number; // mcq 정답 index
-  oxAnswer?: boolean; // ox 정답
+  oxItems?: OxItem[]; // ox 항목들 — 전부 맞아야 정답
 
   annotations: Annotation[];
   status: Status;

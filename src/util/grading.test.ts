@@ -16,15 +16,35 @@ describe("gradeMcq", () => {
 });
 
 describe("gradeOx", () => {
-  it("returns true when the selected answer matches oxAnswer", () => {
-    expect(gradeOx({ oxAnswer: true }, true)).toBe(true);
+  const items = [
+    { statement: "ㄱ", answer: true },
+    { statement: "ㄴ", answer: false },
+    { statement: "ㄷ", answer: true },
+  ];
+
+  it("returns true for a single item answered correctly", () => {
+    expect(gradeOx({ oxItems: [{ statement: "", answer: true }] }, [true])).toBe(true);
   });
 
-  it("returns false when the selected answer differs from oxAnswer", () => {
-    expect(gradeOx({ oxAnswer: true }, false)).toBe(false);
+  it("returns false for a single item answered wrong", () => {
+    expect(gradeOx({ oxItems: [{ statement: "", answer: true }] }, [false])).toBe(false);
   });
 
-  it("returns false when oxAnswer is undefined", () => {
-    expect(gradeOx({ oxAnswer: undefined }, false)).toBe(false);
+  it("returns true only when every item matches", () => {
+    expect(gradeOx({ oxItems: items }, [true, false, true])).toBe(true);
+  });
+
+  it("returns false when any one item is wrong", () => {
+    expect(gradeOx({ oxItems: items }, [true, true, true])).toBe(false);
+  });
+
+  it("returns false when an item is left unanswered", () => {
+    expect(gradeOx({ oxItems: items }, [true, false, null])).toBe(false);
+    expect(gradeOx({ oxItems: items }, [true, false])).toBe(false);
+  });
+
+  it("returns false when there are no items", () => {
+    expect(gradeOx({ oxItems: undefined }, [])).toBe(false);
+    expect(gradeOx({ oxItems: [] }, [])).toBe(false);
   });
 });

@@ -27,6 +27,24 @@ class ReviewNoteDB extends Dexie {
       archives: "id, createdAt",
       questions: "id, archiveId, status, createdAt, [archiveId+status]",
     });
+    // v2: OX questions hold several statements, each with its own answer.
+    // Turn the old single `oxAnswer` into a one-item list.
+    this.version(2)
+      .stores({
+        archives: "id, createdAt",
+        questions: "id, archiveId, status, createdAt, [archiveId+status]",
+      })
+      .upgrade((tx) =>
+        tx
+          .table<StoredQuestion & { oxAnswer?: boolean }, string>("questions")
+          .toCollection()
+          .modify((q) => {
+            if (q.oxAnswer !== undefined) {
+              q.oxItems = [{ statement: "", answer: q.oxAnswer }];
+            }
+            delete q.oxAnswer;
+          }),
+      );
   }
 }
 

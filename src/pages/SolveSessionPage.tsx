@@ -30,12 +30,12 @@ function mcqChoiceClass(
 
 function oxButtonClass(
   value: boolean,
-  question: Question,
+  answer: boolean,
   selectedOx: boolean | null,
   graded: boolean,
 ): string {
   if (graded) {
-    if (value === question.oxAnswer) return "border-correct text-correct";
+    if (value === answer) return "border-correct text-correct";
     if (value === selectedOx) return "border-wrong text-wrong";
     return "border-border text-muted";
   }
@@ -51,7 +51,9 @@ function referenceAnswerText(question: Question): string {
     return text ? `정답: ${text}` : "정답 정보가 없어요";
   }
   if (question.type === "ox") {
-    return `정답: ${question.oxAnswer ? "O" : "X"}`;
+    const items = question.oxItems ?? [];
+    if (items.length === 1) return `정답: ${items[0].answer ? "O" : "X"}`;
+    return `정답: ${items.map((item, i) => `${i + 1} ${item.answer ? "O" : "X"}`).join(" · ")}`;
   }
   return "";
 }
@@ -71,7 +73,8 @@ export default function SolveSessionPage() {
   const [showAll, setShowAll] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null);
-  const [selectedOx, setSelectedOx] = useState<boolean | null>(null);
+  // One entry per OX item, by index; missing/null = not answered yet.
+  const [selectedOx, setSelectedOx] = useState<(boolean | null)[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [graded, setGraded] = useState(false);
   const [wasCorrect, setWasCorrect] = useState<boolean | null>(null);
@@ -95,10 +98,13 @@ export default function SolveSessionPage() {
   }, [archiveId]);
 
   const currentQuestion = queue[currentIndex];
+  const oxItems = currentQuestion?.type === "ox" ? (currentQuestion.oxItems ?? []) : [];
+  const allOxAnswered =
+    oxItems.length > 0 && oxItems.every((_, i) => typeof selectedOx[i] === "boolean");
 
   function resetAnswerState() {
     setSelectedChoice(null);
-    setSelectedOx(null);
+    setSelectedOx([]);
     setRevealed(false);
     setGraded(false);
     setWasCorrect(null);
@@ -110,6 +116,14 @@ export default function SolveSessionPage() {
     setQueue(selectSessionQueue(allQuestions, next));
     setCurrentIndex(0);
     resetAnswerState();
+  }
+
+  function handleSelectOx(index: number, value: boolean) {
+    setSelectedOx((prev) => {
+      const next = oxItems.map((_, i) => prev[i] ?? null);
+      next[index] = value;
+      return next;
+    });
   }
 
   function handleNext() {
@@ -172,7 +186,7 @@ export default function SolveSessionPage() {
         finalizeGrade(gradeMcq(currentQuestion, selectedChoice));
         return;
       case "ox":
-        if (selectedOx === null) return;
+        if (!allOxAnswered) return;
         finalizeGrade(gradeOx(currentQuestion, selectedOx));
         return;
       case "essay":
@@ -306,23 +320,45 @@ export default function SolveSessionPage() {
         )}
 
         {currentQuestion.type === "ox" && (
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              disabled={graded}
-              onClick={() => setSelectedOx(true)}
-              className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(true, currentQuestion, selectedOx, graded)}`}
-            >
-              O
-            </button>
-            <button
-              type="button"
-              disabled={graded}
-              onClick={() => setSelectedOx(false)}
-              className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(false, currentQuestion, selectedOx, graded)}`}
-            >
-              X
-            </button>
+          <div className="mt-4 flex flex-col gap-3">
+            {oxItems.map((item, index) => {
+              const selected = selectedOx[index] ?? null;
+              const showNumber = oxItems.length > 1;
+              // A lone OX with no statement keeps the old bare O/X buttons.
+              const boxed = showNumber || item.statement !== "";
+              return (
+                <div
+                  key={index}
+                  className={boxed ? "rounded-card border border-border bg-surface p-3" : ""}
+                >
+                  {boxed && (
+                    <p className="mb-2 flex gap-2 whitespace-pre-wrap text-sm text-ink">
+                      {showNumber && (
+                        <span className="shrink-0 font-semibold text-muted">{index + 1}</span>
+                      )}
+                      <span>{item.statement}</span>
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    {([true, false] as const).map((value) => (
+                      <button
+                        key={String(value)}
+                        type="button"
+                        disabled={graded}
+                        onClick={() => handleSelectOx(index, value)}
+                        aria-pressed={selected === value}
+                        aria-label={
+                          showNumber ? `항목 ${index + 1} ${value ? "O" : "X"}` : undefined
+                        }
+                        className={`flex-1 rounded-control border px-4 py-2 text-sm font-medium ${oxButtonClass(value, item.answer, selected, graded)}`}
+                      >
+                        {value ? "O" : "X"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -422,7 +458,7 @@ export default function SolveSessionPage() {
               disabled={
                 grading ||
                 (currentQuestion.type === "mcq" && selectedChoice === null) ||
-                (currentQuestion.type === "ox" && selectedOx === null)
+                (currentQuestion.type === "ox" && !allOxAnswered)
               }
               className="shrink-0 whitespace-nowrap rounded-control bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
             >
