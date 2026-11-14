@@ -10,6 +10,8 @@
 - **로컬 전용**: 백엔드·서버·로그인 없음. 모든 데이터는 브라우저(IndexedDB)에 저장.
 - Vercel **정적 배포**.
 - 향후(ver.1): 백엔드 + MongoDB + 로그인 + 클라우드 이미지/OCR. 지금은 그 경계를 `api/` 계층으로 격리해 둔다.
+  - **OCR은 네이버 CLOVA OCR로 확정** (Tesseract는 실사용에서 한글 인식이 부족함). Secret Key는 서버에만 두고 클라이언트 번들에 절대 넣지 말 것.
+    `util/ocr.ts`의 `recognizeText(image, onProgress)` 시그니처는 유지해 호출부(ImageCaptureInput)는 안 바꾼다.
 
 ### 하지 말 것 (ver.0)
 
